@@ -12,27 +12,29 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#define ALPHA 0.01
+#define ALPHA 0.1
 #define THRESH 30
 #define WINSIZE 3
-#define HISTORY 4000
+#define HISTORY 400
+#define NUM_IMAGES 300
 
 using namespace std;
 using namespace cv;
 
 int main(int argc, const char * argv[]) {
     // Initial camera and filename
-    int cam = 1;
+    int cam = 0;
     int file = 393408606;
-
+    int imgNum = 1;
     // Initialize Gaussian Mixture Model
-    Ptr<BackgroundSubtractorMOG2> detector = createBackgroundSubtractorMOG2(HISTORY);
+    //Ptr<BackgroundSubtractorMOG2> detector = createBackgroundSubtractorMOG2(HISTORY);
     
 //    namedWindow("Mask", WINDOW_NORMAL);
 //    namedWindow("Filtered Frame", WINDOW_NORMAL);
 //    namedWindow("Final Result", WINDOW_NORMAL);
-    Mat finalMask, finalThresh;
-    
+//    Mat finalMask, finalThresh;
+    Mat cumAvg;
+    Mat delta, prev, model;
     while (true) {
         ostringstream stringStream;
         stringStream << "../../../sample_drive/sample_drive/cam_" << cam << "/" << file << ".jpg";
@@ -41,18 +43,31 @@ int main(int argc, const char * argv[]) {
         frame = imread(imagefn);
         if (frame.channels()!=3) {
             file++;
+            imgNum++;
             continue;
         }
         cvtColor(frame, gray, CV_BGR2GRAY);
-        //imshow("Original", frame);
+        imshow("Original", frame);
         //resize(frame, frame, Size(frame.cols/2, frame.rows/2));
-        detector->apply(gray, fgmask, ALPHA);
-        //imshow("Mask", fgmask);
-        Mat thresh;
-        threshold(fgmask, thresh, THRESH, 255, THRESH_BINARY);
-        //imshow("Thresh", thresh);
-        Mat filteredFrame, finalFrame;
-        frame.copyTo(filteredFrame, thresh);
+//        detector->apply(gray, fgmask, ALPHA);
+//        detector->getBackgroundImage(model);
+        if (imgNum == 1){
+            cumAvg = gray.clone()*0;
+        } else {
+            absdiff(gray, prev, delta);
+            imshow("Delta", delta);
+            add(delta,((imgNum-1)*cumAvg),cumAvg);
+            cumAvg = cumAvg/imgNum;
+            imshow("Cumulative Average", cumAvg);
+        }
+
+//        imshow("Background Model", model);
+//        imshow("Mask", fgmask);
+//        Mat thresh;
+//        threshold(fgmask, thresh, THRESH, 255, THRESH_BINARY);
+//        imshow("Thresh", thresh);
+//        Mat filteredFrame, finalFrame;
+//        frame.copyTo(filteredFrame, thresh);
         //filteredFrame.copyTo(finalFrame);
         //Mat element = getStructuringElement(MORPH_RECT, Size(WINSIZE,WINSIZE));
         //morphologyEx(finalFrame, finalFrame, MORPH_CLOSE, element);
@@ -63,23 +78,24 @@ int main(int argc, const char * argv[]) {
 //        while (waitKey(30) <= 0) {
 //            ;
 //        }
-//        if (waitKey() >=0) {
-//            break;
-//        }
+        
+        if (waitKey(15) >=0) {
+            break;
+        }
+        gray.copyTo(prev);
         file++;
+        imgNum++;
         //393413167
-        if (file > 393411000) {
-            fgmask.copyTo(finalMask);
-            thresh.copyTo(finalThresh);
+        if (file > 393408606 + NUM_IMAGES) {
+//            fgmask.copyTo(finalMask);
+//            thresh.copyTo(finalThresh);
             break;
         }
     }
-    Mat model;
-    detector->getBackgroundImage(model);
-    imshow("Resulting Model", model);
-    imshow("Final Mask", finalMask);
-    imshow("Final Thresh", finalThresh);
-    while (waitKey(30) <= 0) {
-        ;
-    }
+//    imshow("Resulting Model", model);
+//    imshow("Final Mask", finalMask);
+//    imshow("Final Thresh", finalThresh);
+//    while (waitKey(30) <= 0) {
+//        ;
+//    }
 }
